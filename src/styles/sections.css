@@ -945,13 +945,223 @@
   background: linear-gradient(180deg, var(--desk-b), var(--desk-a));
 }
 
-/* The call to action sends out echoes: two rings ripple outward from the button. */
+/* ---- Two jigsaw pieces ("join" + "echoes") that fuse into the rectangular download button ---- */
+
+.puzzle {
+  --r: calc(var(--u) * 0.16);
+  position: relative;
+  width: calc(var(--u) * 2.9);
+  height: calc(var(--u) * 2);
+  margin: 26px auto 0;
+}
+
+/* Both pieces are 1.4u tall; their bodies (1u tall) sit 0.2u down, so the pair's
+   joined body is a 2u x 1u rectangle centred in the stage. */
+.piece {
+  position: absolute;
+  top: 50%;
+  height: calc(var(--u) * 1.4);
+  margin-top: calc(var(--u) * -0.7);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.62s cubic-bezier(0.5, -0.1, 0.25, 1.35),
+    opacity 0.4s ease;
+}
+
+.piece-a {
+  left: calc(50% - var(--u) * 1.08);
+  width: calc(var(--u) * 1.6);
+  transform: translate(calc(var(--u) * -0.5), calc(var(--u) * -0.14)) rotate(-8deg);
+}
+
+.piece-b {
+  left: calc(50% - var(--u) * 0.06);
+  width: calc(var(--u) * 1.12);
+  transform: translate(calc(var(--u) * 0.5), calc(var(--u) * 0.16)) rotate(7deg);
+}
+
+/* the pieces lean toward each other when you hover, inviting the tap */
+.puzzle[data-state="apart"]:hover .piece-a {
+  transform: translate(calc(var(--u) * -0.38), calc(var(--u) * -0.1)) rotate(-5deg);
+}
+
+.puzzle[data-state="apart"]:hover .piece-b {
+  transform: translate(calc(var(--u) * 0.38), calc(var(--u) * 0.12)) rotate(4deg);
+}
+
+.piece-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: piece-bob 2.6s ease-in-out infinite alternate;
+}
+
+.piece-b .piece-inner {
+  animation-delay: -1.3s;
+}
+
+@keyframes piece-bob {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(var(--u) * -0.06));
+  }
+}
+
+.piece svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 10px 10px rgba(58, 47, 142, 0.25));
+}
+
+/* printed on the card: slightly pressed in */
+.piece-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: max(9px, calc(var(--u) * 0.15));
+  letter-spacing: 0.02em;
+  color: #fff;
+  pointer-events: none;
+}
+
+.piece-label-a {
+  left: 5%;
+  width: 62.5%;
+}
+
+.piece-label-b {
+  left: 38%;
+  width: 57%;
+}
+
+/* joining: slide together and fit (a touch of overshoot gives the snap) */
+.puzzle:not([data-state="apart"]) .piece-a,
+.puzzle:not([data-state="apart"]) .piece-b {
+  transform: none;
+}
+
+.puzzle:not([data-state="apart"]) .piece-inner {
+  animation: none;
+}
+
+.puzzle[data-state="snap"] .piece-a,
+.puzzle[data-state="snap"] .piece-b {
+  animation: piece-snap 0.34s ease-out both;
+}
+
+@keyframes piece-snap {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.snap-flash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--u) * 2);
+  height: var(--u);
+  margin: calc(var(--u) * -0.5) 0 0 calc(var(--u) * -1);
+  border-radius: var(--r);
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.puzzle[data-state="snap"] .snap-flash,
+.puzzle[data-state="button"] .snap-flash {
+  animation: snap-flash 0.7s ease-out both;
+}
+
+@keyframes snap-flash {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35, 1.7);
+  }
+}
+
+/* the joined pieces fuse into the rectangular button sitting exactly on them */
+.puzzle[data-state="button"] .piece {
+  opacity: 0;
+  transform: none;
+  pointer-events: none;
+  transition: opacity 0.45s ease;
+}
+
+.puzzle[data-state="button"] .piece-label {
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.button-holder {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--u) * 2);
+  height: var(--u);
+  margin: calc(var(--u) * -0.5) 0 0 calc(var(--u) * -1);
+  opacity: 0;
+  transform: scale(0.94);
+  pointer-events: none;
+  transition:
+    transform 0.6s cubic-bezier(0.34, 1.4, 0.64, 1),
+    opacity 0.4s ease;
+}
+
+.puzzle[data-state="button"] .button-holder {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.puzzle-hint {
+  margin: 14px 0 0;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  transition: opacity 0.4s ease;
+}
+
+.puzzle-hint.hide {
+  opacity: 0;
+}
+
+/* The finished button sends out echoes: two rectangular rings ripple outward. */
 .enter-cta {
   position: relative;
-  display: inline-block;
-  margin-top: 34px;
-  border-radius: 999px;
-  animation: cta-pulse 1.8s ease-out infinite;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--r);
+}
+
+.puzzle[data-state="button"] .enter-cta {
+  animation: cta-pulse 1.8s ease-out 0.4s infinite;
 }
 
 @keyframes cta-pulse {
@@ -962,7 +1172,7 @@
       0 0 36px rgba(139, 92, 246, 0.25);
   }
   60% {
-    transform: scale(1.045);
+    transform: scale(1.03);
     box-shadow:
       0 0 0 18px rgba(139, 92, 246, 0),
       0 0 56px rgba(139, 92, 246, 0.3);
@@ -980,16 +1190,20 @@
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 999px;
+  border-radius: var(--r);
   border: 1px solid rgba(139, 92, 246, 0.4);
   pointer-events: none;
   opacity: 0;
-  animation: echo-ring 1.8s ease-out infinite;
+}
+
+.puzzle[data-state="button"] .enter-cta::before,
+.puzzle[data-state="button"] .enter-cta::after {
+  animation: echo-ring 1.8s ease-out 0.4s infinite;
 }
 
 .enter-cta::after {
   border-color: rgba(111, 116, 214, 0.35);
-  animation-delay: 0.9s;
+  animation-delay: 1.3s;
 }
 
 @keyframes echo-ring {
@@ -1000,88 +1214,68 @@
   80%,
   100% {
     opacity: 0;
-    transform: scale(1.55, 3);
+    transform: scale(1.3, 1.75);
   }
 }
 
 .enter-btn {
   position: relative;
   z-index: 1;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 12px;
-  overflow: hidden;
-  font-weight: 700;
-  font-size: 20px;
-  letter-spacing: 0.02em;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0 calc(var(--u) * 0.2);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: max(13px, calc(var(--u) * 0.2));
+  line-height: 1;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
   color: #fff;
-  background: linear-gradient(120deg, var(--accent) 0%, #8b5cf6 60%, var(--accent-strong) 130%);
-  background-size: 180% 100%;
-  background-position: 0% 0;
-  padding: 22px 48px 22px 54px;
-  border-radius: 999px;
+  background: var(--accent);
+  border-radius: var(--r);
   text-decoration: none;
+  /* a solid edge underneath, like the thickness of the pieces it was made from */
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 20px 40px rgba(111, 116, 214, 0.4);
+    0 calc(var(--u) * 0.06) 0 #4b4fa8,
+    0 calc(var(--u) * 0.16) calc(var(--u) * 0.3) rgba(75, 79, 168, 0.35);
   transition:
-    transform 0.3s var(--ease-out),
-    box-shadow 0.3s var(--ease-out),
-    background-position 0.6s var(--ease-out);
-}
-
-/* a soft glint that sweeps across now and then */
-.enter-btn::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.75) 50%, transparent 65%);
-  transform: translateX(-120%);
-  animation: enter-glint 2.2s ease-in-out 0.6s infinite;
-  pointer-events: none;
-}
-
-@keyframes enter-glint {
-  0%,
-  45% {
-    transform: translateX(-120%);
-  }
-  85%,
-  100% {
-    transform: translateX(120%);
-  }
-}
-
-.enter-btn-arrow {
-  display: inline-block;
-  transition: transform 0.3s var(--ease-out);
+    transform 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out),
+    background-color 0.2s ease;
 }
 
 .enter-btn:hover,
 .enter-btn:focus-visible {
-  border-radius: 999px; /* the global focus rule would otherwise square it off */
-  transform: translateY(-3px);
-  background-position: 100% 0;
+  border-radius: var(--r); /* the global focus rule would otherwise square it off */
+  transform: translateY(-2px);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.4),
-    0 26px 50px rgba(139, 92, 246, 0.5);
+    0 calc(var(--u) * 0.08) 0 #4b4fa8,
+    0 calc(var(--u) * 0.2) calc(var(--u) * 0.34) rgba(75, 79, 168, 0.4);
 }
 
-.enter-btn:hover .enter-btn-arrow,
-.enter-btn:focus-visible .enter-btn-arrow {
-  transform: translateX(5px);
-}
-
+/* pressed: the button sinks into its edge */
 .enter-btn:active {
-  transform: translateY(0) scale(0.98);
+  transform: translateY(calc(var(--u) * 0.05));
+  box-shadow:
+    0 calc(var(--u) * 0.01) 0 #4b4fa8,
+    0 calc(var(--u) * 0.06) calc(var(--u) * 0.14) rgba(75, 79, 168, 0.3);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .enter-cta,
-  .enter-cta::before,
-  .enter-cta::after,
-  .enter-btn::after {
+  .puzzle[data-state] .enter-cta,
+  .puzzle[data-state] .enter-cta::before,
+  .puzzle[data-state] .enter-cta::after,
+  .enter-btn::after,
+  .piece-inner {
     animation: none;
+  }
+
+  .piece,
+  .button-holder {
+    transition: none;
   }
 }
 
@@ -1095,46 +1289,4 @@
   text-decoration: none;
   min-height: 44px;
   padding: 10px;
-}
-
-/* ---------------------------------------------------------------- */
-/* 09 — Footer                                                        */
-/* ---------------------------------------------------------------- */
-
-.footer {
-  padding: 70px 24px 50px;
-  background: var(--ink);
-  color: #fff;
-  text-align: center;
-}
-
-.footer-brand {
-  font-family: var(--font-script);
-  font-size: 40px;
-  margin: 0;
-}
-
-.footer-tag {
-  margin-top: 4px;
-  font-size: 13px;
-  color: #c9ccf2;
-}
-
-.footer-links {
-  margin-top: 26px;
-  display: flex;
-  gap: 18px;
-  flex-wrap: wrap;
-  justify-content: center;
-  font-size: 12px;
-  color: #c9ccf2;
-  list-style: none;
-  padding: 0;
-}
-
-.footer-close {
-  margin-top: 30px;
-  font-size: 13px;
-  font-style: italic;
-  color: var(--ink-faint);
 }

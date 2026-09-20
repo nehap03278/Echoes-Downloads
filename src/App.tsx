@@ -7,7 +7,6 @@ import InsideEchoes from "./components/InsideEchoes";
 import Privacy from "./components/Privacy";
 import WorldOfEchoes from "./components/WorldOfEchoes";
 import EnterEchoes from "./components/EnterEchoes";
-import Footer from "./components/Footer";
 import "./styles/sections.css";
 
 function App() {
@@ -27,7 +26,6 @@ function App() {
         <WorldOfEchoes />
         <EnterEchoes />
       </main>
-      <Footer />
     </div>
   );
 }

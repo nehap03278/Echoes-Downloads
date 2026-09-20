@@ -48,6 +48,7 @@ button {
 
   --font-body: "Lora", Georgia, "Times New Roman", serif;
   --font-script: "Mrs Saint Delafield", cursive;
+  --font-ui: "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }

@@ -223,7 +223,7 @@ export function planInk(
 
     // Connected pieces of centre-line, left to right.
     const seen = new Uint8Array(bw * bh);
-    const comps: { start: number; minX: number }[] = [];
+    const comps: { px: number[]; minX: number }[] = [];
     for (let i = 0; i < K.length; i++) {
       if (!K[i] || seen[i]) continue;
       const stack = [i];
@@ -233,38 +233,29 @@ export function planInk(
         const p = stack.pop() as number;
         px.push(p);
         for (const o of offs) {
-          const n = p + o;
-          if (K[n] && !seen[n]) {
-            seen[n] = 1;
-            stack.push(n);
+          const nb = p + o;
+          if (K[nb] && !seen[nb]) {
+            seen[nb] = 1;
+            stack.push(nb);
           }
         }
       }
       let minX = Infinity;
       for (const p of px) minX = Math.min(minX, p % bw);
-      let start = -1;
-      let bestKey = Infinity;
-      for (const p of px) {
-        let deg = 0;
-        for (const o of offs) if (K[p + o]) deg++;
-        const x = p % bw;
-        const y = (p / bw) | 0;
-        const key = (deg === 1 ? 0 : 1e6) + x * 1000 + y;
-        if (key < bestKey) {
-          bestKey = key;
-          start = p;
-        }
-      }
-      comps.push({ start, minX });
+      comps.push({ px, minX });
     }
     comps.sort((a, b) => a.minX - b.minX);
 
-    // Walk each component like a pen: keep going straight, come back for side branches later.
-    const order: number[] = [];
-    const jump: boolean[] = [];
+    // Walk a component like a pen: keep going straight, come back for side branches
+    // later. A plain walk can start anywhere, so several starts are tried and the one
+    // that reads most like left-to-right handwriting (least backtracking) wins.
     const visited = new Uint8Array(bw * bh);
-    for (const comp of comps) {
-      const stack = [comp.start];
+    const xOf = (p: number) => p % bw;
+    const yOf = (p: number) => (p / bw) | 0;
+    const walk = (start: number) => {
+      const order: number[] = [];
+      const jump: boolean[] = [];
+      const stack = [start];
       let cur = -1;
       let hist: number[] = [];
       while (stack.length) {
@@ -273,10 +264,7 @@ export function planInk(
           let bd = Infinity;
           for (let z = stack.length - 1; z >= 0; z--) {
             if (visited[stack[z]]) continue;
-            const d = Math.hypot(
-              (stack[z] % bw) - (cur % bw),
-              ((stack[z] / bw) | 0) - ((cur / bw) | 0),
-            );
+            const d = Math.hypot(xOf(stack[z]) - xOf(cur), yOf(stack[z]) - yOf(cur));
             if (d < bd) {
               bd = d;
               qi = z;
@@ -304,9 +292,7 @@ export function planInk(
             continue;
           }
         }
-        const isJump =
-          cur < 0 ||
-          Math.hypot((q % bw) - (cur % bw), ((q / bw) | 0) - ((cur / bw) | 0)) > hop;
+        const isJump = cur < 0 || Math.hypot(xOf(q) - xOf(cur), yOf(q) - yOf(cur)) > hop;
         if (isJump) hist = [];
         order.push(q);
         jump.push(isJump);
@@ -316,33 +302,152 @@ export function planInk(
         for (;;) {
           const cand: number[] = [];
           for (const o of offs) {
-            const n = cur + o;
-            if (K[n] && !visited[n]) cand.push(n);
+            const nb = cur + o;
+            if (K[nb] && !visited[nb]) cand.push(nb);
           }
           if (!cand.length) break;
           let best = cand[0];
           if (cand.length > 1) {
+            // Candidates touching each other are one branch; a real fork has several.
+            const groups: number[][] = [];
+            for (const nb of cand) {
+              const g = groups.find((gr) =>
+                gr.some((m) => Math.abs(xOf(m) - xOf(nb)) <= 1 && Math.abs(yOf(m) - yOf(nb)) <= 1),
+              );
+              if (g) g.push(nb);
+              else groups.push([nb]);
+            }
+            // At a real fork, finish a short side stroke first (like the upstroke of an
+            // "h") and carry on with the long way afterwards.
+            let pool = cand;
+            if (groups.length > 1) {
+              const CAP = 50 * S;
+              let bestSize = CAP;
+              groups.forEach((gr, gi) => {
+                const block = new Set<number>();
+                groups.forEach((other, oi) => {
+                  if (oi !== gi) for (const m of other) block.add(m);
+                });
+                const seenB = new Set<number>(gr);
+                const q = [...gr];
+                for (let h = 0; h < q.length && q.length < CAP; h++) {
+                  for (const o of offs) {
+                    const nb = q[h] + o;
+                    if (K[nb] && !visited[nb] && !seenB.has(nb) && !block.has(nb)) {
+                      seenB.add(nb);
+                      q.push(nb);
+                    }
+                  }
+                }
+                if (q.length < bestSize) {
+                  bestSize = q.length;
+                  pool = gr;
+                }
+              });
+            }
             const ref = hist.length >= 5 ? hist[hist.length - 5] : hist[0];
-            const dx = (cur % bw) - (ref % bw);
-            const dy = ((cur / bw) | 0) - ((ref / bw) | 0);
+            const dx = xOf(cur) - xOf(ref);
+            const dy = yOf(cur) - yOf(ref);
             const dl = Math.hypot(dx, dy) || 1;
             let bs = -Infinity;
-            for (const n of cand) {
-              const ex = (n % bw) - (cur % bw);
-              const ey = ((n / bw) | 0) - ((cur / bw) | 0);
-              const sc = (ex * dx + ey * dy) / (Math.hypot(ex, ey) * dl);
+            for (const nb of pool) {
+              const ex = xOf(nb) - xOf(cur);
+              const ey = yOf(nb) - yOf(cur);
+              const el = Math.hypot(ex, ey) || 1;
+              let sc = (ex * dx + ey * dy) / (el * dl);
+              // No heading yet (start of a stroke): lean rightward, as handwriting does.
+              if (hist.length < 5) sc += 0.4 * (ex / el);
               if (sc > bs) {
                 bs = sc;
-                best = n;
+                best = nb;
               }
             }
-            for (const n of cand) if (n !== best) stack.push(n);
+            for (const nb of cand) if (nb !== best) stack.push(nb);
           }
           order.push(best);
           jump.push(false);
           visited[best] = 1;
           cur = best;
           hist.push(best);
+        }
+      }
+      return { order, jump, cost: walkCost(order, jump) };
+    };
+
+    // Backtracking cost: leftward travel (jumps included) plus a charge per pen lift.
+    const walkCost = (order: number[], jump: boolean[]) => {
+      let cost = 0;
+      for (let j = 1; j < order.length; j++) {
+        cost += Math.max(0, xOf(order[j - 1]) - xOf(order[j]));
+        if (jump[j]) cost += 12 * S;
+      }
+      return cost;
+    };
+
+    // The same pen path drawn end-to-start (each stroke run reversed in place).
+    const reversed = (w: { order: number[]; jump: boolean[] }) => {
+      const n2 = w.order.length;
+      const order2: number[] = [];
+      const jump2: boolean[] = [];
+      for (let j = n2 - 1; j >= 0; j--) {
+        order2.push(w.order[j]);
+        jump2.push(j === n2 - 1 || w.jump[j + 1]);
+      }
+      return { order: order2, jump: jump2, cost: walkCost(order2, jump2) };
+    };
+
+    const order: number[] = [];
+    const jump: boolean[] = [];
+    for (const comp of comps) {
+      // Start candidates: the leftmost pixels, plus tip-like pixels (stroke ends).
+      const byX = [...comp.px].sort((p, q) => xOf(p) - xOf(q) || yOf(p) - yOf(q));
+      const starts: number[] = [byX[0]];
+      if (comp.px.length >= 60) {
+        const tips: number[] = [];
+        const win = 5 * S;
+        for (const p of byX) {
+          let trans = 0;
+          let count = 0;
+          for (let r = 0; r < 8; r++) {
+            const a1 = K[p + offs[r]];
+            const a2 = K[p + offs[(r + 1) % 8]];
+            if (a1) count++;
+            if (!a1 && a2) trans++;
+          }
+          if (count < 1 || trans !== 1) continue;
+          // A real stroke end has a single branch nearby; a corner mid-stroke has two.
+          const px0 = xOf(p);
+          const py0 = yOf(p);
+          let near = 0;
+          for (let dy = -win; dy <= win; dy++) {
+            for (let dx = -win; dx <= win; dx++) {
+              if (K[(py0 + dy) * bw + px0 + dx]) near++;
+            }
+          }
+          if (near <= win * 1.7) tips.push(p);
+          if (tips.length >= 12) break;
+        }
+        for (const t of tips) {
+          if (starts.every((sp) => Math.hypot(xOf(sp) - xOf(t), yOf(sp) - yOf(t)) > 4 * S)) {
+            starts.push(t);
+          }
+          if (starts.length >= 6) break;
+        }
+      }
+      let bestWalk: ReturnType<typeof walk> | null = null;
+      for (const st of starts) {
+        const w = walk(st);
+        for (const p of comp.px) visited[p] = 0;
+        // Earlier (more leftward) starts win unless a later one is clearly better;
+        // a walk that ran right-to-left is flipped if that reads better.
+        for (const cand of [w, reversed(w)]) {
+          if (!bestWalk || cand.cost < bestWalk.cost - 6 * S) bestWalk = cand;
+        }
+      }
+      if (bestWalk) {
+        for (let j = 0; j < bestWalk.order.length; j++) {
+          order.push(bestWalk.order[j]);
+          jump.push(bestWalk.jump[j]);
         }
       }
     }
