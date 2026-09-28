@@ -1290,3 +1290,11 @@
   min-height: 44px;
   padding: 10px;
 }
+
+.download-note {
+  max-width: 34em;
+  margin: 18px auto 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}

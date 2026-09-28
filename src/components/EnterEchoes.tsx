@@ -11,6 +11,16 @@ const TAB_PIECE =
 const SOCKET_PIECE =
   "M0 20 L94 20 Q100 20 100 26 L100 114 Q100 120 94 120 L0 120 L0 83 Q0 76 6 75.5 L13.25 76 A15 15 0 1 0 13.25 64 L6 64.5 Q0 64 0 57 Z";
 
+// In-app browsers (Instagram, Facebook, WhatsApp, TikTok, …) and bare Android WebViews
+// ("; wv)") usually can't hand an APK download to Android, so there we ask people to
+// open the page in their normal browser instead of starting a download that stalls.
+const IN_APP_BROWSER =
+  /Instagram|FBAN|FBAV|FB_IAB|FBIOS|WhatsApp|Line\/|Snapchat|musical_ly|TikTok|BytedanceWebview|Twitter|LinkedInApp|Pinterest|; wv\)/;
+
+function isInAppBrowser() {
+  return typeof navigator !== "undefined" && IN_APP_BROWSER.test(navigator.userAgent);
+}
+
 type JigsawProps = {
   d: string;
   viewBox: string;
@@ -34,6 +44,7 @@ export default function EnterEchoes() {
   const [state, setState] = useState<PuzzleState>("apart");
   const timers = useRef<number[]>([]);
   const buttonRef = useRef<HTMLAnchorElement>(null);
+  const [inApp] = useState(isInAppBrowser);
 
   useEffect(() => {
     const pending = timers.current;
@@ -45,10 +56,9 @@ export default function EnterEchoes() {
   }, [state]);
 
   const assemble = () => {
+    // Tapping a piece only fits the puzzle together; the revealed button is the one and
+    // only download trigger, so a single tap never starts more than one download.
     if (state !== "apart") return;
-    // Tapping a piece is itself the download tap: start the APK download now (inside the
-    // user's click) through the same link the finished button uses.
-    buttonRef.current?.click();
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setState("button");
       return;
@@ -108,11 +118,13 @@ export default function EnterEchoes() {
               <span className="enter-cta">
                 <a
                   ref={buttonRef}
-                  href={APK_DOWNLOAD_URL}
-                  download
+                  href={inApp ? undefined : APK_DOWNLOAD_URL}
+                  download={inApp ? undefined : true}
                   className="enter-btn"
                   tabIndex={done ? 0 : -1}
                   aria-hidden={!done}
+                  aria-disabled={inApp || undefined}
+                  aria-describedby="download-note"
                 >
                   Join Echoes
                 </a>
@@ -122,9 +134,13 @@ export default function EnterEchoes() {
 
           <p className={`puzzle-hint ${state === "apart" ? "" : "hide"}`}>tap a piece to join</p>
 
-          <a href={APK_DOWNLOAD_URL} className="android-link">
-            Android
-          </a>
+          <p id="download-note" className="download-note" role={inApp ? "alert" : undefined}>
+            {inApp
+              ? "Downloads can't finish inside this app's browser. Open this page in Chrome or your usual browser (use the ⋮ or share menu and choose Open in browser), then tap Join Echoes there."
+              : "When the download finishes, tap Open, or open Echoes from your Downloads or notifications. If Android asks, allow your browser to install apps. If Chrome shows a warning, choose Download anyway."}
+          </p>
+
+          <span className="android-link">Android</span>
         </div>
       </div>
     </section>
